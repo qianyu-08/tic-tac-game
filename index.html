@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>マルバツゲーム</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --cell: #1f2937;
+      --cell-hover: #334155;
+      --text: #e5e7eb;
+      --accent: #60a5fa;
+      --win: #22c55e;
+      --border: rgba(255, 255, 255, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at top, #1e293b, var(--bg));
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .app {
+      width: min(92vw, 420px);
+      background: rgba(17, 24, 39, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(10px);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.8rem;
+      letter-spacing: 0.05em;
+      text-align: center;
+    }
+
+    .status {
+      text-align: center;
+      margin-bottom: 18px;
+      font-size: 1rem;
+      color: #cbd5e1;
+      min-height: 1.5em;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .cell {
+      aspect-ratio: 1 / 1;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: var(--cell);
+      color: var(--text);
+      font-size: clamp(2.2rem, 8vw, 3.6rem);
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.12s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .cell:hover {
+      background: var(--cell-hover);
+      transform: translateY(-2px);
+    }
+
+    .cell:disabled {
+      cursor: not-allowed;
+      opacity: 1;
+    }
+
+    .cell.win {
+      background: rgba(34, 197, 94, 0.18);
+      border-color: rgba(34, 197, 94, 0.7);
+      color: #86efac;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    button.reset {
+      flex: 1;
+      border: none;
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-size: 1rem;
+      font-weight: 700;
+      color: white;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      cursor: pointer;
+      transition: transform 0.12s ease, filter 0.2s ease;
+    }
+
+    button.reset:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
+    .hint {
+      margin-top: 12px;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>マルバツゲーム</h1>
+    <div id="status" class="status">先手: ○ の番です</div>
+    <div class="board" id="board" aria-label="マルバツゲーム盤面"></div>
+    <div class="controls">
+      <button class="reset" id="resetBtn">リセット</button>
+    </div>
+    <div class="hint">○ と × を交互に置いて、3つ並べたら勝ちです。</div>
+  </div>
+
+  <script>
+    const boardEl = document.getElementById('board');
+    const statusEl = document.getElementById('status');
+    const resetBtn = document.getElementById('resetBtn');
+
+    let board = Array(9).fill('');
+    let currentPlayer = '○';
+    let gameActive = true;
+
+    const winningLines = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6]
+    ];
+
+    function createBoard() {
+      boardEl.innerHTML = '';
+      board.forEach((value, index) => {
+        const cell = document.createElement('button');
+        cell.className = 'cell';
+        cell.type = 'button';
+        cell.textContent = value;
+        cell.setAttribute('aria-label', `マス ${index + 1}`);
+        cell.addEventListener('click', () => handleMove(index));
+        boardEl.appendChild(cell);
+      });
+    }
+
+    function handleMove(index) {
+      if (!gameActive || board[index] !== '') return;
+
+      board[index] = currentPlayer;
+      render();
+
+      const winLine = checkWinner();
+      if (winLine) {
+        gameActive = false;
+        highlightWin(winLine);
+        statusEl.textContent = `${currentPlayer} の勝ちです！`;
+        return;
+      }
+
+      if (board.every(cell => cell !== '')) {
+        gameActive = false;
+        statusEl.textContent = '引き分けです。まあ、よくあることです。';
+        return;
+      }
+
+      currentPlayer = currentPlayer === '○' ? '×' : '○';
+      statusEl.textContent = `次は ${currentPlayer} の番です`;
+    }
+
+    function checkWinner() {
+      for (const line of winningLines) {
+        const [a, b, c] = line;
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+          return line;
+        }
+      }
+      return null;
+    }
+
+    function highlightWin(line) {
+      const cells = document.querySelectorAll('.cell');
+      line.forEach(index => cells[index].classList.add('win'));
+    }
+
+    function render() {
+      const cells = document.querySelectorAll('.cell');
+      cells.forEach((cell, index) => {
+        cell.textContent = board[index];
+        cell.disabled = board[index] !== '' || !gameActive;
+      });
+    }
+
+    function resetGame() {
+      board = Array(9).fill('');
+      currentPlayer = '○';
+      gameActive = true;
+      statusEl.textContent = '先手: ○ の番です';
+      createBoard();
+      render();
+    }
+
+    resetBtn.addEventListener('click', resetGame);
+
+    createBoard();
+    render();
+  </script>
+</body>
+</html>
